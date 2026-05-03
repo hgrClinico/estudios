@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HGR — Módulo Rayos X (Senior Edition)</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+  <style>
+    :root {
+      --p: #0073ea;
+      --ph: #0060c7;
+      --danger: #e2445c;
+      --ok: #00c875;
+      --bg: #f5f6f8;
+      --sur: #fff;
+      --bdr: #d0d4e4;
+      --bdrl: #e6e9f0;
+      --tx: #323338;
+      --muted: #676879;
+      --r: 8px;
+      --shm: 0 4px 16px rgba(0, 0, 0, .10);
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Roboto', sans-serif;
+      font-size: 13px;
+      color: var(--tx);
+      background: var(--bg);
+      line-height: 1.5;
+    }
+
+    /* Layout */
+    .hdr {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      background: var(--sur);
+      border-bottom: 1px solid var(--bdr);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    /* Components */
+    .panel {
+      background: var(--sur);
+      border: 1px solid var(--bdr);
+      border-radius: var(--r);
+      box-shadow: var(--shm);
+      overflow: hidden;
+      margin-bottom: 24px;
+      display: none;
+      animation: slideDown 0.3s ease-out;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      padding: 20px;
+    }
+
+    .span-2 {
+      grid-column: span 2;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    input,
+    select,
+    textarea {
+      padding: 8px 12px;
+      border: 1px solid var(--bdr);
+      border-radius: 4px;
+      font-size: 13px;
+      transition: border 0.2s;
+      text-transform: uppercase;
+      /* Visualmente en mayúsculas */
+    }
+
+    input:focus {
+      border-color: var(--p);
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(0, 115, 234, 0.1);
+    }
+
+    /* Buttons */
+    .btn {
+      cursor: pointer;
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: none;
+      transition: 0.2s;
+    }
+
+    .btn-p {
+      background: var(--p);
+      color: white;
+    }
+
+    .btn-p:hover {
+      background: var(--ph);
+    }
+
+    .btn-s {
+      background: transparent;
+      border: 1px solid var(--bdr);
+      color: var(--muted);
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    /* Table Design */
+    .tbl-wrap {
+      background: white;
+      border-radius: var(--r);
+      border: 1px solid var(--bdr);
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    th {
+      background: var(--bg);
+      padding: 12px;
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    td {
+      padding: 12px;
+      border-bottom: 1px solid var(--bdrl);
+    }
+
+    tr:hover {
+      background: #f9fafb;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(255, 255, 255, 0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    /* Estilos Toggle Switch */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 40px;
+      height: 22px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #d1d5db;
+      transition: .3s;
+      border-radius: 22px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .3s;
+      border-radius: 50%;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    }
+
+    input:checked+.slider {
+      background-color: var(--p);
+    }
+
+    input:checked+.slider:before {
+      transform: translateX(18px);
+    }
+
+    .switch-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 6px;
+    }
+
+    .switch-text {
+      font-size: 13px;
+      color: var(--tx);
+      font-weight: 500;
+    }
+
+    /* Sidebar Styles */
+    .app-wrap {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      width: 260px;
+      background: linear-gradient(180deg, #ffffff 0%, #f0f7ff 100%);
+      border-right: 1px solid var(--bdr);
+      display: flex;
+      flex-direction: column;
+      padding: 24px 16px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      z-index: 200;
+    }
+
+    .side-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 40px;
+      padding: 0 8px;
+    }
+
+    .side-menu {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .side-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border-radius: var(--r);
+      color: var(--muted);
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 12px;
+      letter-spacing: 0.5px;
+      transition: 0.2s;
+    }
+
+    .side-item i {
+      width: 18px;
+      height: 18px;
+    }
+
+    .side-item:hover {
+      background: rgba(0, 115, 234, 0.05);
+      color: var(--p);
+    }
+
+    .side-item.active {
+      background: rgba(0, 115, 234, 0.1);
+      color: var(--p);
+    }
+
+    .main-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      /* Evita que el contenido desborde el flex */
+    }
+
+    @media (max-width: 768px) {
+      .sidebar {
+        display: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="loading-overlay" id="loader"><i data-lucide="loader-2" class="spin"></i></div>
+
+  <div class="app-wrap">
+    <!-- BARRA LATERAL (SIDEBAR) -->
+    <aside class="sidebar">
+      <div class="side-brand">
+        <div
+          style="width:32px; height:32px; background:var(--p); border-radius:6px; display:flex; align-items:center; justify-content:center; color:white;">
+          <i data-lucide="activity" width="20"></i>
+        </div>
+        <div style="display:flex; flex-direction:column">
+          <span style="font-weight:700; font-size:14px; color:var(--tx); line-height:1">HGR</span>
+          <span style="font-size:10px; color:var(--muted)">CONTROL DE ESTUDIOS</span>
+        </div>
+      </div>
+
+      <nav class="side-menu">
+        <a href="beta_moduloRayosX.html" target="_blank" class="side-item active">
+          <i data-lucide="radio-tower"></i> RAYOS X
+        </a>
+        <a href="#" class="side-item">
+          <i data-lucide="waves"></i> ULTRASONIDO
+        </a>
+        <a href="#" class="side-item">
+          <i data-lucide="box"></i> TOMOGRAFÍA
+        </a>
+      </nav>
+
+      <div style="margin-top:auto; padding:16px; border-top:1px solid var(--bdrl); font-size:11px; color:var(--muted)">
+        v2.4.0 — 2026
+      </div>
+    </aside>
+
+    <!-- ÁREA PRINCIPAL -->
+    <div class="main-area">
+      <header class="hdr">
+        <div style="display:flex; align-items:center; gap:12px">
+          <i data-lucide="radio-tower" style="color:var(--p)"></i>
+          <h1 style="font-size:18px">Rayos X <span style="color:var(--muted); font-weight:400" id="count">0</span></h1>
+        </div>
+        <div style="display:flex; gap:10px">
+          <button class="btn btn-s" onclick="exportarExcel()"><i data-lucide="download" width="16"></i>Excel</button>
+          <button class="btn btn-p" onclick="togglePanel()"><i data-lucide="plus" width="16"></i>Nuevo Estudio</button>
+        </div>
+      </header>
+
+      <main class="container">
+        <!-- FORMULARIO DINÁMICO -->
+        <section class="panel" id="form-panel">
+          <div style="padding:16px; border-bottom:1px solid var(--bdrl); display:flex; justify-content:space-between">
+            <h3 style="display:flex; align-items:center; gap:8px"><i data-lucide="clipboard-list" width="18"></i>Captura
+              de
+              Estudio</h3>
+          </div>
+          <form id="rayos-form">
+            <div class="grid">
+              <div class="field span-2">
+                <label>Nombre del Paciente *</label>
+                <input type="text" name="Paciente" id="f-nombre" required placeholder="Ej: Perez Garcia Juan">
+              </div>
+              <div class="field">
+                <label>Sexo</label>
+                <select name="Sexo" id="f-sexo">
+                  <option value="M">Masculino</option>
+                  <option value="F">Femenino</option>
+                  <option value="O">Otro</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Fecha de Nacimiento</label>
+                <input type="date" name="Fecha Nac" id="f-fnac" onchange="helperCalcEdad(this.value)">
+              </div>
+              <div class="field">
+                <label>Edad Calculada</label>
+                <input type="text" name="Edad" id="f-edad" readonly style="background:#f0f0f0">
+              </div>
+              <div class="field">
+                <label>Procedencia *</label>
+                <input list="dl-proc" id="f-proc-text" placeholder="Seleccione o busque..." required autocomplete="off"
+                  onchange="updateHiddenId(this, 'dl-proc', 'f-proc-val')">
+                <datalist id="dl-proc"></datalist>
+                <input type="hidden" name="idProcedencia" id="f-proc-val">
+              </div>
+              <div class="field span-2">
+                <label>Zona Anatómica / Proyección *</label>
+                <input list="dl-zona" id="f-zona-text" placeholder="Seleccione o busque..." required autocomplete="off"
+                  onchange="updateHiddenId(this, 'dl-zona', 'f-zona-val')">
+                <datalist id="dl-zona"></datalist>
+                <input type="hidden" name="idZonasAna" id="f-zona-val">
+              </div>
+              <div class="field">
+                <label>Lateralidad</label>
+                <select name="Lateralidad" id="f-lat">
+                  <option>N/A</option>
+                  <option>Derecha</option>
+                  <option>Izquierda</option>
+                  <option>Bilateral</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Número de Placas</label>
+                <input type="number" name="Placas" value="1" min="1" max="10">
+              </div>
+
+              <!-- Panel informativo INDEPENDIENTE DE ANCHO COMPLETO -->
+              <div id="zona-info"
+                style="display:none; grid-column: 1 / -1; margin-top: -8px; margin-bottom: 8px; padding:10px 14px; background:#f0f4f8; border-left:4px solid var(--p); border-radius:4px; font-size:12px; line-height:1.6;">
+              </div>
+              <div class="field">
+                <label>Equipo Portátil</label>
+                <input type="hidden" name="Portátil" id="f-portatil-val" value="NO">
+                <div class="switch-wrap">
+                  <label class="switch">
+                    <input type="checkbox" id="f-portatil-check"
+                      onchange="document.getElementById('f-portatil-val').value = this.checked ? 'SÍ' : 'NO'; document.getElementById('lbl-portatil').innerText = this.checked ? 'Sí' : 'No';">
+                    <span class="slider"></span>
+                  </label>
+                  <span class="switch-text" id="lbl-portatil">No</span>
+                </div>
+              </div>
+
+              <!-- Nuevo Switch: Estudios Especiales -->
+              <div class="field">
+                <label>Estudios Especiales</label>
+                <input type="hidden" name="Estudios Especiales" id="f-especiales-val" value="NO">
+                <div class="switch-wrap">
+                  <label class="switch">
+                    <input type="checkbox" id="f-especiales-check" onchange="
+                  document.getElementById('f-especiales-val').value = this.checked ? 'SÍ' : 'NO'; 
+                  document.getElementById('lbl-especiales').innerText = this.checked ? 'Sí' : 'No';
+                  document.getElementById('box-tipo-estudio').style.display = this.checked ? 'flex' : 'none';
+                  document.getElementById('f-tipo-estudio').required = this.checked;
+                  if(!this.checked) document.getElementById('f-tipo-estudio').value = '';
+                ">
+                    <span class="slider"></span>
+                  </label>
+                  <span class="switch-text" id="lbl-especiales">No</span>
+                </div>
+              </div>
+
+              <!-- Caja de texto dinámica -->
+              <div class="field span-2" id="box-tipo-estudio" style="display:none;">
+                <label>Tipo de Estudio *</label>
+                <input type="text" name="Tipo de Estudio" id="f-tipo-estudio"
+                  placeholder="Especifique el tipo de estudio especial">
+              </div>
+
+              <!-- Observaciones movido hasta abajo y con ancho completo -->
+              <div class="field" style="grid-column: 1 / -1;">
+                <label>Observaciones</label>
+                <textarea name="Observaciones" rows="2"></textarea>
+              </div>
+            </div>
+            <div style="padding:16px; background:var(--bg); text-align:right">
+              <button type="button" class="btn btn-s" onclick="togglePanel()">Cancelar</button>
+              <button type="submit" class="btn btn-p" id="save-btn">Guardar en Base de Datos</button>
+            </div>
+          </form>
+        </section>
+
+        <!-- DATA TABLE -->
+        <div class="tbl-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Paciente</th>
+                <th>Procedencia</th>
+                <th>Zona</th>
+                <th>Especiales</th>
+                <th>Tipo Estudio</th>
+                <th>Placas</th>
+                <th>Portátil</th>
+                <th>Fecha</th>
+              </tr>
+            </thead>
+            <tbody id="main-table-body">
+              <!-- Se llena mediante JS -->
+            </tbody>
+          </table>
+        </div>
+    </div>
+    </main>
+  </div>
+  </div>
+
+  <script>
+    /**
+     * CONFIGURACIÓN SENIOR:
+     * El estado de la aplicación centralizado.
+     */
+    const API_URL = "https://script.google.com/macros/s/AKfycbw3VX_Xytwefd7_pc_M06RuypONP7lHjm8XlcKAk11IK87Xf5RxOWQDUzqB4FeWyiA1/exec";
+    let state = { catalogos: null, registros: [] };
+
+    // Inicialización
+    async function init() {
+      setLoading(true);
+      console.log("Iniciando sincronización con:", API_URL);
+
+      try {
+        const response = await fetch(API_URL, { method: 'GET' });
+        if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+
+        const data = await response.json();
+        console.log("Respuesta completa del servidor:", data);
+
+        if (data && data.status === "success") {
+          if (data.procedencias.length === 0 && data.zonas.length === 0) {
+            console.warn("La URL respondió pero los catálogos están vacíos. Revisa los nombres de las columnas en Sheets.");
+          }
+          state.catalogos = data;
+          state.registros = data.registros || [];
+          renderSelects();
+          renderTable();
+          setLoading(false);
+          return;
+        } else if (data && data.status === "error") {
+          throw new Error("Error en servidor: " + data.message);
+        }
+      } catch (e) {
+        console.warn("Fetch falló. Causa:", e.message);
+      }
+
+      // Fallback a google.script.run
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(data => {
+            console.log("Datos cargados vía google.script.run");
+            state.catalogos = data;
+            state.registros = data.registros || [];
+            renderSelects();
+            renderTable();
+            setLoading(false);
+          })
+          .withFailureHandler(err => {
+            console.error("Error en google.script.run:", err);
+            setLoading(false);
+          })
+          .obtenerCatalogos();
+      } else {
+        setLoading(false);
+        // Solo mostramos alerta si no estamos en entorno Apps Script
+        if (typeof google === 'undefined') {
+          alert("⚠️ No se pudieron cargar los datos.\n\nPrueba abrir la API_URL directamente en tu navegador para ver si responde.");
+        }
+      }
+    }
+
+    function renderSelects() {
+      if (!state.catalogos || !state.catalogos.procedencias || !state.catalogos.zonas) {
+        console.error("No hay catálogos para renderizar:", state.catalogos);
+        return;
+      }
+
+      const { procedencias, zonas } = state.catalogos;
+      console.log("Renderizando catálogos:", procedencias.length, "procedencias y", zonas.length, "zonas.");
+
+      const procList = document.getElementById('dl-proc');
+      if (procList) {
+        procList.innerHTML = procedencias.map(p => `<option data-id="${p["idprocedencia"]}" value="${p["descripcionProcedencia"]}"></option>`).join('');
+      }
+
+      const zonaList = document.getElementById('dl-zona');
+      if (zonaList) {
+        zonaList.innerHTML = zonas.map(z => `<option data-id="${z["idZonasAna"]}" value="${z["Terminología(Rayos X)"]} (${z["Proyecciones"]})"></option>`).join('');
+      }
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('main-table-body');
+      const countEl = document.getElementById('count');
+      if (countEl) countEl.innerText = state.registros.length;
+
+      if (!tbody) return;
+      if (!state.registros || state.registros.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 20px; color: var(--muted)">No hay registros recientes</td></tr>';
+        return;
+      }
+
+      // Mostramos solo los últimos 30 en la tabla para fluidez, pero el Excel tendrá todo
+      const visibles = state.registros.slice(0, 30);
+
+      tbody.innerHTML = visibles.map(r => {
+        const proc = state.catalogos.procedencias.find(p => p["idprocedencia"] == r.idProcedencia);
+        const descProc = proc ? proc["descripcionProcedencia"] : r.idProcedencia;
+
+        const zona = state.catalogos.zonas.find(z => z["idZonasAna"] == r.idZonasAna);
+        const descZona = zona ? zona["Terminología(Rayos X)"] : r.idZonasAna;
+
+        const date = r.fecha_registro ? new Date(r.fecha_registro).toLocaleDateString() : '';
+
+        return `
+          <tr>
+            <td>${r.paciente || ''}</td>
+            <td>${descProc || ''}</td>
+            <td>${descZona || ''}</td>
+            <td><strong style="color:${r["Estudios Especiales"] === 'SÍ' ? 'var(--p)' : 'inherit'}">${r["Estudios Especiales"] || 'NO'}</strong></td>
+            <td>${r["Tipo de Estudio"] || '-'}</td>
+            <td>${r.Placas || ''}</td>
+            <td>${r.Portatil || r["Portátil"] || 'NO'}</td>
+            <td>${date}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function exportarExcel() {
+      if (!state.registros || state.registros.length === 0) {
+        alert("No hay datos para exportar.");
+        return;
+      }
+
+      const pass = prompt("INTRODUCE LA CONTRASEÑA DE ADMINISTRADOR:");
+      if (pass !== "4dm1n") {
+        alert("⚠️ ACCESO DENEGADO: CONTRASEÑA INCORRECTA.");
+        return;
+      }
+
+      setLoading(true);
+
+      try {
+        // Preparamos los datos con nombres reales en lugar de IDs
+        const datosExport = state.registros.map(r => {
+          const proc = state.catalogos.procedencias.find(p => p["idprocedencia"] == r.idProcedencia);
+          const zona = state.catalogos.zonas.find(z => z["idZonasAna"] == r.idZonasAna);
+
+          return {
+            "ID": r.ID,
+            "Fecha Registro": r.fecha_registro ? new Date(r.fecha_registro).toLocaleString() : '',
+            "Paciente": r.paciente,
+            "Sexo": r.sexo,
+            "Edad": r.edad,
+            "Procedencia": proc ? proc["descripcionProcedencia"] : r.idProcedencia,
+            "Zona Anatómica": zona ? zona["Terminología(Rayos X)"] : r.idZonasAna,
+            "Región": zona ? zona["Región Principal"] : '',
+            "Proyecciones": zona ? zona["Proyecciones"] : '',
+            "Lateralidad": r.Lateralidad,
+            "Placas": r.Placas,
+            "Portatil": r.Portatil || r["Portátil"],
+            "Especial": r["Estudios Especiales"],
+            "Tipo Estudio": r["Tipo de Estudio"],
+            "Placas": r.Placas,
+            "Observaciones": r.Observaciones
+          };
+        });
+
+        const ws = XLSX.utils.json_to_sheet(datosExport);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "RayosX_Reporte");
+
+        const fechaStr = new Date().toISOString().slice(0, 10);
+        XLSX.writeFile(wb, `Reporte_RayosX_${fechaStr}.xlsx`);
+      } catch (err) {
+        console.error("Error exportando:", err);
+        alert("Ocurrió un error al generar el Excel.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    /**
+     * Mapea el texto seleccionado al ID oculto para la base de datos
+     */
+    function updateHiddenId(input, listId, hiddenId) {
+      const hidden = document.getElementById(hiddenId);
+      const list = document.getElementById(listId);
+      if (!list) return;
+
+      const option = Array.from(list.options).find(opt => opt.value === input.value);
+      const selectedId = option ? option.dataset.id : '';
+      hidden.value = selectedId;
+
+      // Lógica especial para mostrar información extra de la Zona Anatómica
+      if (listId === 'dl-zona') {
+        const infoPanel = document.getElementById('zona-info');
+        if (selectedId) {
+          const z = state.catalogos.zonas.find(item => item["idZonasAna"] === selectedId);
+          if (z) {
+            infoPanel.innerHTML = `
+              <div style="white-space:nowrap; overflow-x:auto; padding-bottom:2px;">
+                <span style="color:var(--muted)">Región:</span> <strong>${z["Región Principal"] || 'N/A'}</strong> &nbsp;&nbsp;&nbsp;
+                <span style="color:var(--muted)">Subregión:</span> <strong>${z["Subregión"] || 'N/A'}</strong> &nbsp;&nbsp;&nbsp;
+                <span style="color:var(--muted)">Estructuras:</span> <strong>${z["Estructuras"] || 'N/A'}</strong> &nbsp;&nbsp;&nbsp;
+                <span style="color:var(--muted)">Terminología:</span> <strong>${z["Terminología(Rayos X)"]}</strong> &nbsp;&nbsp;&nbsp;
+                <span style="color:var(--muted)">Proyecciones:</span> <strong>${z["Proyecciones"]}</strong>
+              </div>
+            `;
+            infoPanel.style.display = 'block';
+          }
+        } else {
+          infoPanel.style.display = 'none'; // Ocultar si borran el texto o escriben algo inválido
+        }
+      }
+    }
+
+    // Manejo del Formulario (Mapeo Dinámico de Datos)
+    document.getElementById('rayos-form').addEventListener('submit', async function (e) {
+      e.preventDefault();
+
+      // Validación extra para asegurar que se seleccionó un valor válido de la lista
+      const idProc = document.getElementById('f-proc-val').value;
+      const idZona = document.getElementById('f-zona-val').value;
+
+      if (!idProc) {
+        alert("Por favor, selecciona una Procedencia válida de las opciones sugeridas.");
+        return;
+      }
+      if (!idZona) {
+        alert("Por favor, selecciona una Zona Anatómica válida de las opciones sugeridas.");
+        return;
+      }
+
+      setLoading(true);
+
+      const formData = new FormData(this);
+      const payload = Object.fromEntries(formData.entries());
+
+      // Estandarización: Todo a MAYÚSCULAS antes de enviar
+      for (let key in payload) {
+        if (typeof payload[key] === 'string') {
+          payload[key] = payload[key].toUpperCase().trim();
+        }
+      }
+
+      payload.ID = Date.now();
+
+      try {
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+        const res = await response.text();
+        alert("✓ " + res);
+        this.reset();
+        togglePanel();
+        init();
+      } catch (err) {
+        console.warn("Fetch POST falló, intentando google.script.run:", err);
+        if (typeof google !== 'undefined' && google.script && google.script.run) {
+          google.script.run
+            .withSuccessHandler(res => {
+              alert("✓ " + res);
+              this.reset();
+              togglePanel();
+              init();
+            })
+            .withFailureHandler(err => alert("Error: " + err))
+            .guardarEstudio(payload);
+        } else {
+          alert("Error de conexión: " + err);
+          setLoading(false);
+        }
+      }
+    });
+
+    // Helpers UI
+    function togglePanel() {
+      const p = document.getElementById('form-panel');
+      p.style.display = (p.style.display === 'block') ? 'none' : 'block';
+    }
+
+    function setLoading(show) {
+      document.getElementById('loader').style.display = show ? 'flex' : 'none';
+      document.getElementById('save-btn').disabled = show;
+    }
+
+    function helperCalcEdad(fecha) {
+      if (!fecha) return;
+      const hoy = new Date();
+      const nac = new Date(fecha);
+      let edad = hoy.getFullYear() - nac.getFullYear();
+      document.getElementById('f-edad').value = `${edad} años`;
+    }
+
+    // Lanzar al cargar
+    window.onload = () => {
+      lucide.createIcons();
+      init();
+    };
+  </script>
+
+</body>
+
+</html>
