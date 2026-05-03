@@ -464,6 +464,13 @@
                 <datalist id="dl-proc"></datalist>
                 <input type="hidden" name="idProcedencia" id="f-proc-val">
               </div>
+              <div class="field">
+                <label>Radiólogo *</label>
+                <input list="dl-radio" id="f-radio-text" placeholder="Busque radiólogo..." required autocomplete="off"
+                  onchange="updateHiddenId(this, 'dl-radio', 'f-radio-val')">
+                <datalist id="dl-radio"></datalist>
+                <input type="hidden" name="idRadiologo" id="f-radio-val">
+              </div>
               <div class="field span-2">
                 <label>Zona Anatómica / Proyección *</label>
                 <input list="dl-zona" id="f-zona-text" placeholder="Seleccione o busque..." required autocomplete="off"
@@ -571,7 +578,7 @@
      * CONFIGURACIÓN SENIOR:
      * El estado de la aplicación centralizado.
      */
-    const API_URL = "https://script.google.com/macros/s/AKfycbw3VX_Xytwefd7_pc_M06RuypONP7lHjm8XlcKAk11IK87Xf5RxOWQDUzqB4FeWyiA1/exec";
+    const API_URL = "https://script.google.com/macros/s/AKfycbxNKni59_gI5vs_9aciEH83v2h3F-E1xugDuLXGk8mTgrmYPVkkTXRm0xyWWzaKyjCd/exec";
     let state = { catalogos: null, registros: [] };
 
     // Inicialización
@@ -646,6 +653,11 @@
       if (zonaList) {
         zonaList.innerHTML = zonas.map(z => `<option data-id="${z["idZonasAna"]}" value="${z["Terminología(Rayos X)"]} (${z["Proyecciones"]})"></option>`).join('');
       }
+
+      const radioList = document.getElementById('dl-radio');
+      if (radioList && state.catalogos.radiologos) {
+        radioList.innerHTML = state.catalogos.radiologos.map(r => `<option data-id="${r["idradiologo"]}" value="${r["nombreRadiologo"]}"></option>`).join('');
+      }
     }
 
     function renderTable() {
@@ -669,11 +681,14 @@
         const zona = state.catalogos.zonas.find(z => z["idZonasAna"] == r.idZonasAna);
         const descZona = zona ? zona["Terminología(Rayos X)"] : r.idZonasAna;
 
+        const radio = state.catalogos.radiologos ? state.catalogos.radiologos.find(rad => rad["idradiologo"] == r.idRadiologo) : null;
+        const descRadio = radio ? radio["nombreRadiologo"] : (r.idRadiologo || '-');
+
         const date = r.fecha_registro ? new Date(r.fecha_registro).toLocaleDateString() : '';
 
         return `
           <tr>
-            <td>${r.paciente || ''}</td>
+            <td>${r.paciente || ''} <br><small style="color:var(--muted)">RAD: ${descRadio}</small></td>
             <td>${descProc || ''}</td>
             <td>${descZona || ''}</td>
             <td><strong style="color:${r["Estudios Especiales"] === 'SÍ' ? 'var(--p)' : 'inherit'}">${r["Estudios Especiales"] || 'NO'}</strong></td>
@@ -722,7 +737,8 @@
             "Especial": r["Estudios Especiales"],
             "Tipo Estudio": r["Tipo de Estudio"],
             "Placas": r.Placas,
-            "Observaciones": r.Observaciones
+            "Observaciones": r.Observaciones,
+            "Radiologo": r.idRadiologo
           };
         });
 
